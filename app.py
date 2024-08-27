@@ -28,7 +28,7 @@ async def log_process_time(request: Request, call_next):
 class PromptRequest(BaseModel):
     prompt: str
 
-@app.post("/generate")
+@app.post("/chat")
 async def generate_route(data: PromptRequest):
     prompt = data.prompt
 

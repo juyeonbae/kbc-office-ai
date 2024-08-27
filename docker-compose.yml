@@ -9,6 +9,12 @@ services:
       context: ./
       dockerfile: Dockerfile
     container_name: flask_api
+    networks:
+      - harpsharp
     restart: always
     env_file:
       - .env
+
+networks:
+  harpsharp:
+    external: true
