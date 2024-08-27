@@ -1,9 +1,11 @@
+
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import BaseModel
 import asyncio
 from openai_api import detect_response_type, generate_text, generate_image_from_text
 from io import BytesIO
+from datetime import datetime
 
 import time 
 from loguru import logger
@@ -31,14 +33,14 @@ async def generate_route(data: PromptRequest):
     prompt = data.prompt
 
     if not prompt:
-        raise HTTPException(status_code=400, detail="프롬프트가 제공되지 않았습니다.")
+        raise HTTPException(status_code=400, detail="잘못된 입력 값 입니다.")
 
     response_type = detect_response_type(prompt)
 
     try:
         if response_type == 'image':
             image_task = asyncio.create_task(generate_image_from_text(prompt))
-            generated_text = await generate_text(prompt)
+            #generated_text = await generate_text(prompt)
 
             image = await image_task
             if image:
@@ -47,15 +49,26 @@ async def generate_route(data: PromptRequest):
                 img_io.seek(0)
                 return StreamingResponse(img_io, media_type="image/png")
             else:
-                raise HTTPException(status_code=500, detail="이미지 생성에 실패했습니다.")
+                return create_response("GENERATED_FAILED", "이미지 생성에 실패했습니다.", 500, None)
         else:
             generated_text = await generate_text(prompt)
-            return JSONResponse(content={"generated_text": generated_text})
+            response_data = {"generated_text": generated_text}
+            return create_response("GENERATED_SUCCESSFULLY", f"gpt4-o가 생성한 답변입니다.", 201, response_data)
     except Exception as e:
-        print(f"An error occurred: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+            print(f"An error occurred: {e}")
+            return create_response("GENERATED_FAILED", str(e), 500, None)
+
+def create_response(message, details, http_status, data):
+    response = {
+        "timeStamp": datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+        "code": http_status,
+        "message": message,
+        "details": details,
+        "data": data
+    }
+    return JSONResponse(content=response, status_code=200)
 
 
 if __name__ == '__main__':
     import uvicorn
-    uvicorn.run("testapp:app", host='0.0.0.0', port=5001)
+    uvicorn.run("app:app", host='0.0.0.0', port=5001)
