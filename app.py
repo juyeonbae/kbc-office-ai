@@ -13,6 +13,7 @@ app = FastAPI()
 logger.add("file_{time}.log", rotation="1 day")
 
 # 응답 시간 체크 
+'''
 @app.middleware("http")
 async def log_process_time(request: Request, call_next):
     start_time = time.time() 
@@ -20,7 +21,7 @@ async def log_process_time(request: Request, call_next):
     process_time = time.time() - start_time  
     logger.info(f"Request: {request.method} {request.url} - Process time: {process_time:.4f} seconds")
     return response
-
+'''
 
 class PromptRequest(BaseModel):
     prompt: str
