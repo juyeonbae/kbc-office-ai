@@ -10,13 +10,13 @@ app = FastAPI()
 
 # 요청으로 들어오는 데이터의 구조를 정의하는 Pydantic 모델
 class PromptRequest(BaseModel):
-    user_id: str  # 사용자의 고유 ID
+    username: str  # 사용자의 고유 ID
     prompt: str   # 사용자가 입력한 질문 또는 명령어
 
 # 텍스트 또는 이미지 생성을 위한 엔드포인트 정의
 @app.post("/generate")
 async def generate_route(data: PromptRequest):
-    user_id = data.user_id
+    username = data.username
     prompt = data.prompt
 
     if not prompt:
@@ -28,10 +28,10 @@ async def generate_route(data: PromptRequest):
     try:
         if response_type == 'image':
             # 이미지 생성 작업 비동기 처리 시작
-            image_task = asyncio.create_task(generate_image_from_text(user_id, prompt))
+            image_task = asyncio.create_task(generate_image_from_text(username, prompt))
             
             # 텍스트 생성 (동시에 처리되지 않고, 차례로 처리됨)
-            generated_text = await generate_text(user_id, prompt)
+            generated_text = await generate_text(username, prompt)
 
             # 이미지 생성 완료 대기
             image = await image_task
@@ -45,7 +45,7 @@ async def generate_route(data: PromptRequest):
             else:
                 return create_response("GENERATED_FAILED", "이미지 생성에 실패했습니다.", 500, None)
         else:
-            generated_text = await generate_text(user_id, prompt)
+            generated_text = await generate_text(username, prompt)
             return JSONResponse(content={"generated_text": generated_text})
     
     except Exception as e:

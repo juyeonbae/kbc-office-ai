@@ -14,7 +14,7 @@ openai.api_key = os.getenv("OPENAI_API_KEY")
 translator = Translator()
 
 # MongoDB URL 설정
-db_url = os.getenv("MONGO_DB_URL", "mongodb://localhost:27017")
+db_url = os.getenv("MONGO_DB_URL", "mongodb://localhost:27017") # localhost -> harpsharp.com 으로 교체 
 history_service = HistoryService(db_url)
 
 # 비동기 번역 함수
@@ -31,7 +31,7 @@ async def fetch_image(session, url):
         else:
             raise HTTPException(status_code=500, detail=f"Failed to download image, status code: {response.status}")
 
-async def generate_image_from_text(user_id, kr_prompt):
+async def generate_image_from_text(username, kr_prompt):
     translated_prompt = await translate_text(kr_prompt)
     
     try:
@@ -49,7 +49,7 @@ async def generate_image_from_text(user_id, kr_prompt):
             image = Image.open(BytesIO(image_data))
             
             # 히스토리 저장 (질문과 이미지 URL을 저장)
-            history_service.save_history(user_id, kr_prompt, image_url)
+            history_service.save_history(username, kr_prompt, image_url)
 
             return image
     except Exception as e:
@@ -57,13 +57,13 @@ async def generate_image_from_text(user_id, kr_prompt):
         raise HTTPException(status_code=500, detail="Image generation failed")
 
 # 텍스트 생성 관련 함수
-async def generate_text(user_id, prompt, model_name='gpt-4o-mini'):
+async def generate_text(username, prompt, model_name='gpt-4o-mini'):
     # 사용자 히스토리 가져오기
-    history = history_service.get_history(user_id)
+    history = history_service.get_history(username)
 
     # 이전 대화 기록을 바탕으로 대화 문맥을 유지하는 프롬프트 생성
     context = ""
-    for entry in history[-5:]:  # 최근 5개의 대화만 가져와 문맥을 만듭니다.
+    for entry in history[-5:]:  # 최근 5개의 대화만 가져와 문맥 생성 -> 범위는 조정하면 됨 
         context += f"User: {entry['question']}\nAssistant: {entry['answer']}\n"
 
     # 새로운 질문과 결합
@@ -75,12 +75,12 @@ async def generate_text(user_id, prompt, model_name='gpt-4o-mini'):
             {"role": "system", "content": "You are a helpful assistant."},
             {"role": "user", "content": full_prompt}
         ],
-        max_tokens=500
+        max_tokens=500 # 최대 답변 생성 길이 
     )
     generated_text = response['choices'][0]['message']['content']
 
     # 히스토리 저장 (질문과 생성된 텍스트 저장)
-    history_service.save_history(user_id, prompt, generated_text)
+    history_service.save_history(username, prompt, generated_text)
 
     return generated_text
 
