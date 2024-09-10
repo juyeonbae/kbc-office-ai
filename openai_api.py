@@ -7,6 +7,7 @@ from googletrans import Translator
 from fastapi import HTTPException
 from dotenv import load_dotenv
 from history_service import HistoryService
+import traceback
 
 load_dotenv()
 openai.api_key = os.getenv("OPENAI_API_KEY")
@@ -14,7 +15,7 @@ openai.api_key = os.getenv("OPENAI_API_KEY")
 translator = Translator()
 
 # MongoDB URL 설정
-db_url = os.getenv("MONGO_DB_URL", "mongodb://localhost:27017") # localhost -> harpsharp.com 으로 교체 
+db_url = os.getenv("MONGO_DB_URL", "mongodb://root:mongo123!@mongo:27017") # localhost -> harpsharp.com 으로 교체
 history_service = HistoryService(db_url)
 
 # 비동기 번역 함수
@@ -33,27 +34,24 @@ async def fetch_image(session, url):
 
 async def generate_image_from_text(username, kr_prompt):
     translated_prompt = await translate_text(kr_prompt)
-    
+
     try:
         response = await openai.Image.acreate(
             prompt=translated_prompt,
             n=1,
-            size='256x256',
-            model='dall-e-2'
+            size='1024x1024',
+            model='dall-e-3',
+            quality='hd'
         )
 
         image_url = response['data'][0]['url']
+        # 히스토리 저장 (질문과 이미지 URL을 저장)
+        history_service.save_history(username, kr_prompt, image_url)
 
-        async with aiohttp.ClientSession() as session:
-            image_data = await fetch_image(session, image_url)
-            image = Image.open(BytesIO(image_data))
-            
-            # 히스토리 저장 (질문과 이미지 URL을 저장)
-            history_service.save_history(username, kr_prompt, image_url)
-
-            return image
+        return image_url
     except Exception as e:
         print(f"An error occurred: {e}")
+        traceback.print_exc()
         raise HTTPException(status_code=500, detail="Image generation failed")
 
 # 텍스트 생성 관련 함수

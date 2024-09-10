@@ -14,13 +14,13 @@ class PromptRequest(BaseModel):
     prompt: str   # 사용자가 입력한 질문 또는 명령어
 
 # 텍스트 또는 이미지 생성을 위한 엔드포인트 정의
-@app.post("/generate")
+@app.post("/chat")
 async def generate_route(data: PromptRequest):
     username = data.username
     prompt = data.prompt
 
     if not prompt:
-        raise HTTPException(status_code=400, detail="잘못된 입력 값 입니다.")
+        raise create_response("GENERATED_FAILED", "텍스트 생성에 실패했습니다.", 400, None, "error")
 
     # 프롬프트를 분석하여 이미지 생성인지 텍스트 생성인지 판별
     response_type = detect_response_type(prompt)
@@ -38,27 +38,25 @@ async def generate_route(data: PromptRequest):
             
             # 이미지 생성이 성공적으로 완료된 경우, 이미지를 반환
             if image:
-                img_io = BytesIO()
-                image.save(img_io, 'PNG')
-                img_io.seek(0)
-                return StreamingResponse(img_io, media_type="image/png")
+                return create_response("GENERATED_IMAGE", "이미지 생성에 성공했습니다", 201, image, response_type)
             else:
-                return create_response("GENERATED_FAILED", "이미지 생성에 실패했습니다.", 500, None)
+                return create_response("GENERATED_FAILED", "이미지 생성에 실패했습니다.", 500, None, "error")
         else:
             generated_text = await generate_text(username, prompt)
-            return JSONResponse(content={"generated_text": generated_text})
+            return create_response("GENERATED_TEXT", "텍스트 생성에 성공했습니다.", 201, generated_text, response_type)
     
     except Exception as e:
             print(f"An error occurred: {e}")
-            return create_response("GENERATED_FAILED", str(e), 500, None)
+            return create_response("GENERATED_FAILED", str(e), 500, None, "error")
 
-def create_response(message, details, http_status, data):
+def create_response(message, details, http_status, data, type):
     response = {
         "timeStamp": datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
         "code": http_status,
         "message": message,
         "details": details,
-        "data": data
+        "data": data,
+        "type": type
     }
     return JSONResponse(content=response, status_code=200)
 
